@@ -44,7 +44,15 @@ HERE = Path(__file__).resolve().parent
 DASH_FILE = HERE / "GH_Trading_Dashboard_hosted.html"
 DEFAULT_DATASET = os.environ.get("DATABENTO_DATASET", "XNAS.ITCH")
 MASSIVE_BASES = ["https://api.massive.com", "https://api.polygon.io"]
-SIDE_MAP = {"B": "Buy", "S": "Sell", "N": "None", "A": "Buy", "": "None"}
+def norm_side(v):
+    """Databento normalizes imbalance side to Ask/Bid. Ask (A) = sell imbalance,
+       Bid (B) = buy imbalance. Robust to 'A'/'B'/'Ask'/'Bid'/'S'/'Sell'/'Buy'."""
+    s = str(v).strip().upper()
+    if s in ("A", "ASK", "S", "SELL"):
+        return "Sell"
+    if s in ("B", "BID", "BUY"):
+        return "Buy"
+    return "None"
 
 app = Flask(__name__)
 _dbn_client = None
@@ -184,16 +192,34 @@ def imbalance_for_date(ticker, date_str, dataset):
         if len(opening):
             df = opening
     df = df.sort_values("ts_event")
-    row = df.iloc[0]
-    shares = row.get("total_imbalance_qty", None)
-    ref = row.get("ref_price", None)
+
+    # Pick the earliest record at/after 9:25 that actually carries an imbalance
+    # (a real Buy/Sell side and a positive quantity) — this skips the empty
+    # "no imbalance yet" / post-cross padding rows that would otherwise mislead.
+    chosen = None
+    for _, r in df.iterrows():
+        side = norm_side(r.get("side", ""))
+        q = r.get("total_imbalance_qty", None)
+        try:
+            q = None if q is None else int(q)
+        except Exception:
+            q = None
+        if side in ("Buy", "Sell") and q and q > 0:
+            chosen = r
+            break
+    if chosen is None:
+        chosen = df.iloc[0]
+
+    side = norm_side(chosen.get("side", ""))
+    shares = chosen.get("total_imbalance_qty", None)
+    ref = chosen.get("ref_price", None)
     shares = None if shares is None else int(shares)
     ref = None if ref is None else float(ref)
     return date_str, {
-        "side": SIDE_MAP.get(str(row.get("side", "")).upper(), str(row.get("side", ""))),
+        "side": side,
         "shares": shares, "ref_price": ref,
         "notional": None if (shares is None or ref is None) else shares * ref,
-        "ts": str(row.get("ts_event", "")),
+        "ts": str(chosen.get("ts_event", "")),
     }
 
 

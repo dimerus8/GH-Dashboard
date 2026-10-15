@@ -569,7 +569,7 @@ const BASKET = {
   fmtNot(n){ if(n==null)return''; const a=Math.abs(n); if(a>=1e9)return '$'+(n/1e9).toFixed(2)+'B'; if(a>=1e6)return '$'+(n/1e6).toFixed(1)+'M'; if(a>=1e3)return '$'+(n/1e3).toFixed(0)+'K'; return '$'+Math.round(n); },
   imbCell(o){ if(!o) return '<span class="mono" style="color:var(--muted)">—</span>';
     const col=o.side==='Sell'?'var(--red)':o.side==='Buy'?'var(--green)':'var(--muted)';
-    return `<span style="color:${col};font-weight:700">${o.side||'—'}</span> <span class="mono" style="color:var(--muted)">${this.fmtSh(o.shares)} · ${this.fmtNot(o.notional)}</span>`; },
+    return `<span style="color:${col};font-weight:700">${o.side||'—'}</span> <span class="mono">${this.fmtNot(o.notional)} · ${this.fmtSh(o.shares)}</span>`; },
 
   statCell(m){ if(!m||m.avg==null)return{v:"—",sub:"",cls:""};
     return {v:(m.avg>=0?"+":"")+m.avg.toFixed(2)+"%",sub:m.red.toFixed(0)+"% red",cls:m.avg>=0?"pos":"neg"}; },
@@ -602,13 +602,13 @@ const BASKET = {
     const pv=$('bk_prev'),nx=$('bk_next'); if(pv)pv.onclick=()=>{this.page--;this.renderTable();}; if(nx)nx.onclick=()=>{this.page++;this.renderTable();};
   },
   downloadExcel(){
-    const labels=["Date","Day","9:24-9:30","Imb side","Imb shares","Imb notional $","+1m","+2m","+3m","+5m","Open $"];
+    const labels=["Date","Day","9:24-9:30","Imb side","Imb notional $","Imb shares","+1m","+2m","+3m","+5m","Open $"];
     let h=`<table border="1"><tr><td colspan="11"><b>${this.ticker} — 9:24-9:30 move signal days, follow-through & 9:25 imbalance</b></td></tr><tr>`;
     h+=labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';
     for(const r of this.rows){
       h+=`<tr><td>${r.date}</td><td>${r.weekday}</td>`;
       const mv=r.move_924_930; h+=`<td style="background:${mv==null?'':(mv>=0?'#15803d':'#b91c1c')};color:${mv==null?'#000':'#fff'}">${mv==null?'':mv.toFixed(3)}</td>`;
-      const o=r.imb; h+=`<td>${o&&o.side?o.side:''}</td><td>${o&&o.shares!=null?o.shares:''}</td><td>${o&&o.notional!=null?Math.round(o.notional):''}</td>`;
+      const o=r.imb; h+=`<td>${o&&o.side?o.side:''}</td><td>${o&&o.notional!=null?Math.round(o.notional):''}</td><td>${o&&o.shares!=null?o.shares:''}</td>`;
       for(const k of ["ret_1","ret_2","ret_3","ret_5"]){ const v=r[k]; h+=`<td style="background:${v==null?'':(v>=0?'#15803d':'#b91c1c')};color:${v==null?'#000':'#fff'}">${v==null?'':v.toFixed(3)}</td>`; }
       h+=`<td>${r.open_px==null?'':r.open_px.toFixed(2)}</td></tr>`;
     }
