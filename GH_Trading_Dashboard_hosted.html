@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GH Trading Dashboard</title>
+<style>
+  :root{
+    --ink:#0f1729; --muted:#64748b; --line:#e6eaf2; --bg:#f4f6fb;
+    --card:#fff; --accent:#2f6fed; --accent-d:#1f56c8;
+    --green:#15803d; --red:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;font-size:14px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-variant-numeric:tabular-nums}
+  header{background:var(--ink);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px}
+  header .brand{font-size:12px;color:#9fb3d1}
+  header .keywrap{margin-left:auto;display:flex;flex-direction:column;gap:4px;min-width:280px}
+  header .keywrap label{font-size:10px;color:#9fb3d1;text-transform:uppercase;letter-spacing:.6px}
+  header .keywrap input{padding:8px 10px;border-radius:7px;border:1px solid #33415a;background:#1b2740;color:#fff;font-size:13px}
+  .tabs{max-width:1240px;margin:20px auto 0;padding:0 20px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .tab{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;
+       padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .wrap{max-width:1240px;margin:18px auto;padding:0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(15,23,41,.04);margin-bottom:18px}
+  .filters{padding:16px 18px;display:grid;gap:12px}
+  .f5{grid-template-columns:1.1fr 1.1fr 1.5fr 1fr 1.1fr}
+  .f6{grid-template-columns:repeat(6,1fr)}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 6px 2px;font-weight:600}
+  input,select{width:100%;padding:10px 12px;border:1px solid #d5dcea;border-radius:8px;font-size:14px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,111,237,.15)}
+  .actions{display:flex;gap:10px;align-items:center;padding:0 18px 18px}
+  button.act{border:0;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;color:#fff;cursor:pointer}
+  .primary{background:var(--accent)} .primary:hover{background:var(--accent-d)}
+  .ghost{background:#eef2fb;color:var(--accent)} .ghost:hover{background:#e2e9fb}
+  button:disabled{opacity:.45;cursor:default}
+  .status{color:var(--muted);font-size:13px;margin-left:4px}
+  .stats{display:grid;gap:12px;margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .stat .v{font-size:20px;font-weight:700;margin-top:4px}
+  .stat .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+  h2{font-size:14px;margin:0;padding:14px 18px;border-bottom:1px solid var(--line);color:#334155}
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  thead th{position:sticky;top:0;background:#f0f3fa;color:#334155;font-size:12px;text-transform:uppercase;
+           letter-spacing:.4px;padding:11px 14px;text-align:right;border-bottom:1px solid var(--line);
+           cursor:pointer;white-space:nowrap;user-select:none}
+  thead th:first-child,tbody td:first-child{text-align:left;padding-left:18px}
+  thead th .arrow{color:var(--accent);font-size:10px}
+  tbody td{padding:9px 14px;text-align:right;border-bottom:1px solid #f1f4fa;white-space:nowrap}
+  tbody tr:hover td{background:#fafbff}
+  tbody tr.hl td{background:#fff7ed}
+  .cell{border-radius:6px;padding:4px 8px;display:inline-block;min-width:60px;font-weight:600}
+  .foot{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;color:var(--muted);font-size:13px}
+  .pager button{background:#eef2fb;color:var(--accent);padding:6px 12px;margin-left:6px;border:0;border-radius:6px;cursor:pointer}
+  .err{color:var(--red);background:#fee2e2;border:1px solid #f6c9c9;border-radius:8px;padding:12px 16px;margin-bottom:18px;display:none}
+  .best{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin:0 18px 16px;font-size:14px}
+  .best b{color:#9a3412}
+  @media(max-width:900px){.f5,.f6{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)!important}
+    header .keywrap{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>GH Trading Dashboard</h1>
+    <span class="brand">Massive market data · everything in one place</span>
+    <div class="keywrap">
+      <label>Hosted edition</label>
+      <div style="font-size:12px;color:#9fb3d1;padding-top:6px">Keys live on the GH server — nothing to enter here.</div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="wrap">
+
+    <!-- ============================ TAB 1: PRE-MARKET ============================ -->
+    <section id="panel_premarket" class="panel">
+      <div class="card">
+        <div class="filters f5">
+          <div><label>Ticker</label><input id="pm_ticker" value="MU" placeholder="e.g. MU"></div>
+          <div><label>7:00&ndash;7:15 move (bps)</label><input id="pm_threshold" type="number" value="40" placeholder="40 = 0.40%"></div>
+          <div><label>Direction</label>
+            <select id="pm_direction">
+              <option value="up">Move UP by at least</option>
+              <option value="down">Move DOWN by at least</option>
+              <option value="both">Move EITHER way by at least</option>
+            </select>
+          </div>
+          <div><label>Lookback (days)</label><input id="pm_lookback" type="number" value="365"></div>
+          <div><label>Weekday</label>
+            <select id="pm_weekday"><option value="">All weekdays</option>
+              <option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option></select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="act primary" id="pm_submit">Run scan</button>
+          <button class="act ghost" id="pm_dl" disabled>Download as Excel</button>
+          <span class="status" id="pm_status"></span>
+        </div>
+      </div>
+      <div class="err" id="pm_error"></div>
+      <div class="stats" id="pm_stats" style="display:none;grid-template-columns:repeat(7,1fr)"></div>
+      <div class="card" id="pm_tablecard" style="display:none">
+        <h2>Matching days &mdash; pre-market trigger met, with returns off the 9:30 open</h2>
+        <div style="overflow:auto;max-height:70vh"><table><thead><tr id="pm_head"></tr></thead><tbody id="pm_body"></tbody></table></div>
+        <div class="foot"><span id="pm_count"></span><span class="pager" id="pm_pager"></span></div>
+      </div>
+    </section>
+
+    <!-- ============================ TAB 2: RSI WEEKDAY ============================ -->
+    <section id="panel_rsiweekday" class="panel" style="display:none">
+      <div class="card">
+        <div class="filters f6">
+          <div><label>Ticker</label><input id="rsi_ticker" value="MSTR" placeholder="e.g. MSTR"></div>
+          <div><label>RSI period (days)</label><input id="rsi_period" type="number" value="3"></div>
+          <div><label>RSI condition</label>
+            <select id="rsi_cond"><option value="over">RSI over</option><option value="under">RSI under</option></select></div>
+          <div><label>RSI threshold</label><input id="rsi_thresh" type="number" value="85"></div>
+          <div><label>Min market cap ($B)</label><input id="rsi_mktcap" type="number" value="1" step="0.1"></div>
+          <div><label>Lookback (days)</label><input id="rsi_lookback" type="number" value="730"></div>
+        </div>
+        <div class="actions">
+          <button class="act primary" id="rsi_submit">Run scan</button>
+          <button class="act ghost" id="rsi_dl" disabled>Download as Excel</button>
+          <span class="status" id="rsi_status"></span>
+        </div>
+      </div>
+      <div class="err" id="rsi_error"></div>
+      <div class="stats" id="rsi_stats" style="display:none;grid-template-columns:repeat(4,1fr)"></div>
+      <div class="card" id="rsi_tablecard" style="display:none">
+        <h2>Signal days &mdash; every day the trailing RSI met the condition going into the open</h2>
+        <div style="overflow:auto;max-height:60vh"><table><thead><tr id="rsi_head"></tr></thead><tbody id="rsi_body"></tbody></table></div>
+        <div class="foot"><span id="rsi_count"></span><span class="pager" id="rsi_pager"></span></div>
+      </div>
+      <div class="card" id="rsi_wdcard" style="display:none">
+        <h2>Weekday breakdown &mdash; average move off the open (red = down = good to short)</h2>
+        <div id="rsi_best" class="best"></div>
+        <div style="overflow:auto"><table><thead><tr id="rsi_wdhead"></tr></thead><tbody id="rsi_wdbody"></tbody></table></div>
+        <div class="foot"><span>Cells show the average % move for that weekday; hover for % red and sample size.</span></div>
+      </div>
+    </section>
+
+    <!-- ============================ TAB 3: 9:24-9:30 MOVE -> FOLLOW-THROUGH ============================ -->
+    <section id="panel_basket" class="panel" style="display:none">
+      <div class="card">
+        <div class="filters f5">
+          <div><label>Ticker</label><input id="bk_ticker" value="NVDA" placeholder="e.g. NVDA"></div>
+          <div><label>9:24-9:30 cutoff (bps)</label><input id="bk_cutoff" type="number" value="75" placeholder="75 = 0.75%"></div>
+          <div><label>Direction</label>
+            <select id="bk_direction"><option value="down">Down by at least</option><option value="up">Up by at least</option><option value="both">Either way by at least</option></select></div>
+          <div><label>Lookback (days)</label><input id="bk_lookback" type="number" value="365"></div>
+          <div><label>Imbalance (9:25)</label><input id="bk_imbnote" value="auto-fills when run via gh_server.py" disabled></div>
+        </div>
+        <div class="actions">
+          <button class="act primary" id="bk_submit">Run scan</button>
+          <button class="act ghost" id="bk_dl" disabled>Download as Excel</button>
+          <span class="status" id="bk_status"></span>
+        </div>
+      </div>
+      <div class="err" id="bk_error"></div>
+      <div class="stats" id="bk_stats" style="display:none;grid-template-columns:repeat(6,1fr)"></div>
+      <div class="card" id="bk_tablecard" style="display:none">
+        <h2>Every day the 9:24&rarr;9:30 move met the cutoff &mdash; with follow-through off the 9:30 open</h2>
+        <div style="overflow:auto;max-height:70vh"><table><thead><tr id="bk_head"></tr></thead><tbody id="bk_body"></tbody></table></div>
+        <div class="foot"><span id="bk_count"></span><span class="pager" id="bk_pager"></span></div>
+      </div>
+    </section>
+
+  </div>
+
+<script>
+/* =========================================================================
+   GH TRADING DASHBOARD  —  shared shell + per-project tabs
+   -------------------------------------------------------------------------
+   OPTIONAL: paste your key here to skip the box in the header.
+   e.g.  const HARDCODED_KEY = "abcd1234yourkey";
+   ========================================================================= */
+const HARDCODED_KEY = "";
+
+/* =========================================================================
+   TO ADD A NEW PROJECT LATER:
+     1) Add a <section id="panel_yourid" class="panel" style="display:none"> … </section>
+        block above (copy an existing tab's markup, prefix element ids with your own).
+     2) Write a module object like PM / RSI below with its own run()/render().
+     3) Register it in the TOOLS array (id + label). That's it — the tab appears.
+   ========================================================================= */
+const TOOLS = [
+  { id:'premarket',  label:'Pre-Market 7:00–7:15 Move' },
+  { id:'rsiweekday', label:'RSI Weekday Short-Timing' },
+  { id:'basket',     label:'9:24–9:30 Move' },
+];
+
+/* ---------------- shared: tabs ---------------- */
+function buildTabs(){
+  const nav=document.getElementById('tabs');
+  nav.innerHTML=TOOLS.map((t,i)=>`<button class="tab${i===0?' active':''}" data-id="${t.id}">${t.label}</button>`).join('');
+  nav.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showTool(b.dataset.id));
+}
+function showTool(id){
+  document.querySelectorAll('.panel').forEach(p=>p.style.display=(p.id==='panel_'+id)?'block':'none');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+}
+
+/* ---------------- shared: keys live on the GH server (hosted edition) ----------------
+   The browser never sees a key. All market-data calls go to this server, which holds
+   the Massive and Databento keys and forwards the requests. requireKey() is kept as a
+   no-op so the per-tab code is unchanged. */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const getKey=()=>'server';
+async function fetchAggs(sym,mult,span,from,to){
+  const q=`/api/aggs?ticker=${encodeURIComponent(sym)}&mult=${mult}&span=${span}&from=${from}&to=${to}`;
+  const r=await fetch(q);
+  let j; try{ j=await r.json(); }catch(e){ throw new Error('data error '+r.status); }
+  if(!r.ok||!j.ok) throw new Error(j&&j.error?j.error:('data error '+r.status));
+  return j.results||[];
+}
+async function fetchDetails(sym){
+  const r=await fetch(`/api/details?ticker=${encodeURIComponent(sym)}`);
+  try{ return await r.json(); }catch(e){ return {results:null}; }
+}
+
+/* ---------------- shared: helpers ---------------- */
+const RUNIN=[9,24], OPEN=[9,30], POST=[1,3,5,10,15];
+const DOW=["Mon","Tue","Wed","Thu","Fri"];
+const ET=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+function etParts(ms){ const o={}; ET.formatToParts(new Date(ms)).forEach(p=>o[p.type]=p.value);
+  let hh=parseInt(o.hour,10); if(hh===24)hh=0; return {date:`${o.year}-${o.month}-${o.day}`, min:hh*60+parseInt(o.minute,10)}; }
+function groupByDay(bars){ const days=new Map();
+  for(const b of bars){ const {date,min}=etParts(b.t); if(!days.has(date))days.set(date,new Map()); days.get(date).set(min,b); }
+  return days; }
+function getBar(dm,[hh,mm],tol=3){ const t=hh*60+mm;
+  for(let d=0;d<=tol;d++){ if(dm.has(t+d))return dm.get(t+d); if(dm.has(t-d))return dm.get(t-d); } return null; }
+const pct=(a,b)=>(a==null||b==null||a===0)?null:(b-a)/a*100;
+const utcDate=ms=>new Date(ms).toISOString().slice(0,10);
+const weekday=d=>["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d+"T12:00:00Z").getUTCDay()];
+const fmt=v=>(v==null)?"":v.toFixed(3);
+function heat(v){ if(v==null)return""; const a=Math.min(.85,.18+Math.abs(v)/6);
+  return `background:${v>=0?`rgba(21,128,61,${a})`:`rgba(185,28,28,${a})`};color:#fff`; }
+function computeRSI(closes,period){
+  const rsi=new Array(closes.length).fill(null); if(closes.length<period+1) return rsi;
+  let g=0,l=0; for(let i=1;i<=period;i++){ const d=closes[i]-closes[i-1]; if(d>=0)g+=d; else l+=-d; }
+  let aG=g/period,aL=l/period; rsi[period]=aL===0?100:100-100/(1+aG/aL);
+  for(let i=period+1;i<closes.length;i++){ const d=closes[i]-closes[i-1],gg=d>0?d:0,ll=d<0?-d:0;
+    aG=(aG*(period-1)+gg)/period; aL=(aL*(period-1)+ll)/period; rsi[i]=aL===0?100:100-100/(1+aG/aL); }
+  return rsi;
+}
+async function pool(items,worker,size=8){
+  const res=new Array(items.length); let i=0;
+  await Promise.all(Array.from({length:Math.min(size,items.length)},async()=>{
+    while(i<items.length){ const idx=i++; res[idx]=await worker(items[idx],idx); } }));
+  return res;
+}
+function exportXls(innerHtml, filename){
+  const h=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body>${innerHtml}</body></html>`;
+  const blob=new Blob([h],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+}
+function requireKey(errId){ const er=document.getElementById(errId); if(er) er.style.display='none'; return 'server'; }
+const $=id=>document.getElementById(id);
+
+/* =========================================================================
+   PROJECT 1 — PRE-MARKET 7:00–7:15 MOVE
+   ========================================================================= */
+const PM = {
+  PM_START:[7,0], PM_END:[7,15],
+  rows:[], summary:null, ticker:"", page:1, sortKey:"date", sortDir:-1,
+  COLS:[{k:"date",t:"Date"},{k:"weekday",t:"Day"},{k:"open_px",t:"Open $"},{k:"premkt_move",t:"7:00-7:15"},
+    {k:"runin_924_930",t:"9:24-9:30"},{k:"ret_1",t:"1 Min"},{k:"ret_3",t:"3 Min"},{k:"ret_5",t:"5 Min"},{k:"ret_10",t:"10 Min"},{k:"ret_15",t:"15 Min"}],
+  KEYS:["premkt_move","runin_924_930","ret_1","ret_3","ret_5","ret_10","ret_15"],
+  PER_PAGE:15,
+
+  buildRows(days, thBps, dir){
+    const th=thBps/100, out=[];
+    for(const date of [...days.keys()].sort().reverse()){
+      const dm=days.get(date);
+      const s=getBar(dm,this.PM_START), e=getBar(dm,this.PM_END); if(!s||!e) continue;
+      const move=pct(s.o,e.o); if(move==null) continue;
+      if(dir==="up"&&move<th) continue;
+      if(dir==="down"&&move>-th) continue;
+      if(dir==="both"&&Math.abs(move)<th) continue;
+      const ri=getBar(dm,RUNIN), op=getBar(dm,OPEN); if(!op) continue;
+      const openPx=op.o;
+      const row={date, weekday:weekday(date), open_px:openPx, premkt_move:move, runin_924_930: ri?pct(ri.c,openPx):null};
+      for(const m of POST){ const tb=getBar(dm,[OPEN[0],OPEN[1]+(m-1)]); row["ret_"+m]=tb?pct(openPx,tb.c):null; }
+      out.push(row);
+    }
+    return out;
+  },
+  summarize(rs){ const o={count:rs.length};
+    for(const c of this.KEYS){ const v=rs.map(r=>r[c]).filter(x=>x!=null);
+      o[c]=v.length?{avg:v.reduce((a,b)=>a+b,0)/v.length, green:100*v.filter(x=>x>0).length/v.length}:{avg:null,green:null}; }
+    return o; },
+
+  async run(){
+    const key=requireKey('pm_error'); if(!key) return;
+    const btn=$('pm_submit'), st=$('pm_status'), er=$('pm_error');
+    btn.disabled=true; $('pm_dl').disabled=true; st.textContent='Fetching pre-market data…';
+    try{
+      this.ticker=$('pm_ticker').value.trim().toUpperCase();
+      const thBps=parseFloat($('pm_threshold').value||0), dir=$('pm_direction').value;
+      const look=parseInt($('pm_lookback').value||365,10), wdf=$('pm_weekday').value;
+      const to=new Date(), from=new Date(Date.now()-look*864e5), iso=d=>d.toISOString().slice(0,10);
+      const bars=await fetchAggs(this.ticker,1,'minute',iso(from),iso(to),key);
+      this.rows=this.buildRows(groupByDay(bars),thBps,dir);
+      if(wdf) this.rows=this.rows.filter(r=>r.weekday===wdf);
+      this.summary=this.summarize(this.rows); this.page=1; this.sortKey="date"; this.sortDir=-1;
+      this.renderStats(); this.renderTable();
+      $('pm_dl').disabled=this.rows.length===0;
+      st.textContent=this.rows.length+' matching day'+(this.rows.length===1?'':'s')+'.';
+    }catch(e){ er.textContent='Error: '+e.message; er.style.display='block'; st.textContent=''; this.rows=[]; this.renderStats(); this.renderTable(); }
+    finally{ btn.disabled=false; }
+  },
+  statCell(m){ if(!m||m.avg==null)return{v:"—",sub:"",cls:""};
+    return {v:(m.avg>=0?"+":"")+m.avg.toFixed(2)+"%",sub:m.green.toFixed(0)+"% green",cls:m.avg>=0?"pos":"neg"}; },
+  renderStats(){
+    const el=$('pm_stats'); if(!this.rows.length){ el.style.display='none'; return; }
+    const s=this.summary;
+    const it=[{k:"Matches",v:s.count,sub:"days",cls:""},{k:"9:24-9:30",...this.statCell(s.runin_924_930)},
+      {k:"1 Min",...this.statCell(s.ret_1)},{k:"3 Min",...this.statCell(s.ret_3)},{k:"5 Min",...this.statCell(s.ret_5)},
+      {k:"10 Min",...this.statCell(s.ret_10)},{k:"15 Min",...this.statCell(s.ret_15)}];
+    el.innerHTML=it.map(i=>`<div class="stat"><div class="k">${i.k}</div><div class="v mono ${i.cls||''}">${i.v}</div><div class="sub">${i.sub||''}</div></div>`).join('');
+    el.style.display='grid';
+  },
+  renderTable(){
+    $('pm_tablecard').style.display=this.rows.length?'block':'none'; if(!this.rows.length) return;
+    $('pm_head').innerHTML=this.COLS.map(c=>{ const a=c.k===this.sortKey?`<span class="arrow">${this.sortDir>0?'▲':'▼'}</span>`:''; return `<th data-k="${c.k}">${c.t} ${a}</th>`; }).join('');
+    $('pm_head').querySelectorAll('th').forEach(th=>th.onclick=()=>{ if(this.sortKey===th.dataset.k)this.sortDir*=-1; else{this.sortKey=th.dataset.k;this.sortDir=-1;} this.renderTable(); });
+    const sorted=[...this.rows].sort((a,b)=>{ let x=a[this.sortKey],y=b[this.sortKey];
+      if(this.sortKey==='date'||this.sortKey==='weekday'){x=x||'';y=y||'';return x<y?-this.sortDir:x>y?this.sortDir:0;}
+      x=(x==null?-1e9:x);y=(y==null?-1e9:y);return (x-y)*this.sortDir;});
+    const total=Math.ceil(sorted.length/this.PER_PAGE)||1; this.page=Math.min(this.page,total)||1;
+    const slice=sorted.slice((this.page-1)*this.PER_PAGE,this.page*this.PER_PAGE);
+    $('pm_body').innerHTML=slice.map(r=>`<tr><td class="mono">${r.date}</td><td>${r.weekday}</td>
+      <td class="mono">${r.open_px==null?'':'$'+r.open_px.toFixed(2)}</td>
+      ${this.KEYS.map(k=>`<td><span class="cell mono" style="${heat(r[k])}">${fmt(r[k])}</span></td>`).join('')}</tr>`).join('');
+    $('pm_count').textContent=`${sorted.length} rows`;
+    $('pm_pager').innerHTML=`<button ${this.page<=1?'disabled':''} id="pm_prev">‹ Prev</button>
+      <span class="mono" style="margin:0 8px">${this.page} / ${total}</span>
+      <button ${this.page>=total?'disabled':''} id="pm_next">Next ›</button>`;
+    const pv=$('pm_prev'),nx=$('pm_next'); if(pv)pv.onclick=()=>{this.page--;this.renderTable();}; if(nx)nx.onclick=()=>{this.page++;this.renderTable();};
+  },
+  downloadExcel(){
+    const labels={premkt_move:"7:00-7:15",runin_924_930:"9:24-9:30",ret_1:"1 Min",ret_3:"3 Min",ret_5:"5 Min",ret_10:"10 Min",ret_15:"15 Min"};
+    let h=`<table border="1"><tr><td colspan="10"><b>${this.ticker} — pre-market 7:00-7:15 move</b></td></tr><tr>`;
+    h+=["Date","Day","Open $"].concat(Object.values(labels)).map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    for(const r of this.rows){
+      h+=`<tr><td>${r.date}</td><td>${r.weekday}</td><td>${r.open_px==null?'':r.open_px.toFixed(2)}</td>`;
+      for(const k of this.KEYS){ const v=r[k]; const bg=v==null?'':(v>=0?'#15803d':'#b91c1c'); const fc=v==null?'#000':'#fff';
+        h+=`<td style="background:${bg};color:${fc}">${v==null?'':v.toFixed(3)}</td>`; }
+      h+='</tr>';
+    }
+    h+='</table>';
+    exportXls(h, this.ticker+'_premarket_scan.xls');
+  }
+};
+
+/* =========================================================================
+   PROJECT 2 — RSI WEEKDAY SHORT-TIMING
+   ========================================================================= */
+const RSI = {
+  rows:[], summary:null, wdstats:null, best:null, ticker:"", mktcap:null, page:1, sortKey:"date", sortDir:-1,
+  KEYS:["runin_924_930","ret_1","ret_3","ret_5","ret_10","ret_15"],
+  COLS:[{k:"date",t:"Date"},{k:"weekday",t:"Day"},{k:"rsi_in",t:"RSI in"},{k:"open_px",t:"Open $"},
+    {k:"runin_924_930",t:"9:24-9:30"},{k:"ret_1",t:"1 Min"},{k:"ret_3",t:"3 Min"},{k:"ret_5",t:"5 Min"},{k:"ret_10",t:"10 Min"},{k:"ret_15",t:"15 Min"}],
+  LABELS:{runin_924_930:"9:24-9:30",ret_1:"1 Min",ret_3:"3 Min",ret_5:"5 Min",ret_10:"10 Min",ret_15:"15 Min"},
+  PER_PAGE:20,
+
+  dayReturns(bars){
+    const dm=[...groupByDay(bars).values()][0]||new Map();
+    const op=getBar(dm,OPEN); if(!op) return null;
+    const openPx=op.o, ri=getBar(dm,RUNIN);
+    const out={open_px:openPx, runin_924_930: ri?pct(ri.c,openPx):null};
+    for(const m of POST){ const tb=getBar(dm,[OPEN[0],OPEN[1]+(m-1)]); out["ret_"+m]=tb?pct(openPx,tb.c):null; }
+    return out;
+  },
+  summarize(rs){ const o={count:rs.length};
+    for(const c of this.KEYS){ const v=rs.map(r=>r[c]).filter(x=>x!=null);
+      o[c]=v.length?{avg:v.reduce((a,b)=>a+b,0)/v.length, red:100*v.filter(x=>x<0).length/v.length}:{avg:null,red:null}; }
+    return o; },
+  weekdayStats(rs){ const out={};
+    for(const d of DOW){ const sub=rs.filter(r=>r.weekday===d); const rec={n:sub.length};
+      for(const c of this.KEYS){ const v=sub.map(r=>r[c]).filter(x=>x!=null);
+        rec[c]=v.length?{avg:v.reduce((a,b)=>a+b,0)/v.length, red:100*v.filter(x=>x<0).length/v.length, n:v.length}:{avg:null,red:null,n:0}; }
+      const posts=["ret_1","ret_3","ret_5","ret_10","ret_15"].map(c=>rec[c].avg).filter(x=>x!=null);
+      rec.score=posts.length?posts.reduce((a,b)=>a+b,0)/posts.length:null; out[d]=rec;
+    } return out; },
+  pickBest(ws){ let best=null; for(const d of DOW){ const s=ws[d]; if(s.n>0&&s.score!=null){ if(!best||s.score<best.score)best={day:d,score:s.score,n:s.n}; } } return best; },
+
+  async run(){
+    const key=requireKey('rsi_error'); if(!key) return;
+    const btn=$('rsi_submit'), st=$('rsi_status'), er=$('rsi_error');
+    btn.disabled=true; $('rsi_dl').disabled=true; st.textContent='Checking market cap…';
+    try{
+      this.ticker=$('rsi_ticker').value.trim().toUpperCase();
+      const period=Math.max(2,parseInt($('rsi_period').value||3,10));
+      const cond=$('rsi_cond').value, thr=parseFloat($('rsi_thresh').value||85);
+      const capMinB=parseFloat($('rsi_mktcap').value||0), look=parseInt($('rsi_lookback').value||730,10);
+
+      const det=await fetchDetails(this.ticker,key);
+      this.mktcap=det&&det.results?(det.results.market_cap||null):null;
+      if(capMinB>0 && this.mktcap!=null && this.mktcap<capMinB*1e9)
+        throw new Error(`${this.ticker} market cap is ${(this.mktcap/1e9).toFixed(2)}B, below the ${capMinB}B minimum — does not meet criteria.`);
+
+      st.textContent='Fetching daily bars & computing RSI…';
+      const to=new Date(), from=new Date(Date.now()-look*864e5), iso=d=>d.toISOString().slice(0,10);
+      const daily=await fetchAggs(this.ticker,1,'day',iso(from),iso(to),key);
+      if(!daily.length) throw new Error("No daily data returned for "+this.ticker+".");
+      const dates=daily.map(b=>utcDate(b.t)), closes=daily.map(b=>b.c);
+      const rsi=computeRSI(closes,period);
+      const test=v=> v==null?false:(cond==='over'? v>thr : v<thr);
+      const signals=[]; for(let i=1;i<dates.length;i++){ if(test(rsi[i-1])) signals.push({date:dates[i], rsi_in:rsi[i-1]}); }
+      if(!signals.length){ this.rows=[]; this.summary=null; this.wdstats=null; this.best=null; this.renderAll();
+        st.textContent=`0 days with RSI ${cond} ${thr}.`; btn.disabled=false; return; }
+
+      st.textContent=`Pulling intraday data for ${signals.length} signal day(s)…`;
+      const built=await pool(signals, async(s)=>{ const mins=await fetchAggs(this.ticker,1,'minute',s.date,s.date,key);
+        const r=this.dayReturns(mins); if(!r) return null; return {date:s.date, weekday:weekday(s.date), rsi_in:s.rsi_in, ...r}; }, 8);
+      this.rows=built.filter(Boolean).sort((a,b)=>a.date<b.date?1:-1);
+      this.summary=this.summarize(this.rows); this.wdstats=this.weekdayStats(this.rows); this.best=this.pickBest(this.wdstats);
+      this.page=1; this.sortKey="date"; this.sortDir=-1; this.renderAll();
+      $('rsi_dl').disabled=this.rows.length===0;
+      st.textContent=`${this.rows.length} signal day(s) · cap ${(this.mktcap!=null?(this.mktcap/1e9).toFixed(2)+'B':'n/a')}.`;
+    }catch(e){ er.textContent='Error: '+e.message; er.style.display='block'; st.textContent=''; this.rows=[]; this.renderAll(); }
+    finally{ btn.disabled=false; }
+  },
+
+  renderAll(){ this.renderStats(); this.renderTable(); this.renderWeekday(); },
+  statCell(m){ if(!m||m.avg==null)return{v:"—",sub:"",cls:""};
+    return {v:(m.avg>=0?"+":"")+m.avg.toFixed(2)+"%",sub:m.red.toFixed(0)+"% red",cls:m.avg>=0?"pos":"neg"}; },
+  renderStats(){
+    const el=$('rsi_stats'); if(!this.rows.length){ el.style.display='none'; return; }
+    const s=this.summary;
+    const it=[{k:"Signal days",v:s.count,sub:"RSI met",cls:""},
+      {k:"Market cap",v:this.mktcap!=null?"$"+(this.mktcap/1e9).toFixed(1)+"B":"—",sub:"current",cls:""},
+      {k:"1-min avg",...this.statCell(s.ret_1)},{k:"5-min avg",...this.statCell(s.ret_5)}];
+    el.innerHTML=it.map(i=>`<div class="stat"><div class="k">${i.k}</div><div class="v mono ${i.cls||''}">${i.v}</div><div class="sub">${i.sub||''}</div></div>`).join('');
+    el.style.display='grid';
+  },
+  renderTable(){
+    $('rsi_tablecard').style.display=this.rows.length?'block':'none'; if(!this.rows.length) return;
+    $('rsi_head').innerHTML=this.COLS.map(c=>{ const a=c.k===this.sortKey?`<span class="arrow">${this.sortDir>0?'▲':'▼'}</span>`:''; return `<th data-k="${c.k}">${c.t} ${a}</th>`; }).join('');
+    $('rsi_head').querySelectorAll('th').forEach(th=>th.onclick=()=>{ if(this.sortKey===th.dataset.k)this.sortDir*=-1; else{this.sortKey=th.dataset.k;this.sortDir=-1;} this.renderTable(); });
+    const sorted=[...this.rows].sort((a,b)=>{ let x=a[this.sortKey],y=b[this.sortKey];
+      if(this.sortKey==='date'||this.sortKey==='weekday'){x=x||'';y=y||'';return x<y?-this.sortDir:x>y?this.sortDir:0;}
+      x=(x==null?-1e9:x);y=(y==null?-1e9:y);return (x-y)*this.sortDir;});
+    const total=Math.ceil(sorted.length/this.PER_PAGE)||1; this.page=Math.min(this.page,total)||1;
+    const slice=sorted.slice((this.page-1)*this.PER_PAGE,this.page*this.PER_PAGE);
+    $('rsi_body').innerHTML=slice.map(r=>`<tr><td class="mono">${r.date}</td><td>${r.weekday}</td>
+      <td class="mono">${r.rsi_in==null?'':r.rsi_in.toFixed(1)}</td>
+      <td class="mono">${r.open_px==null?'':'$'+r.open_px.toFixed(2)}</td>
+      ${this.KEYS.map(k=>`<td><span class="cell mono" style="${heat(r[k])}">${fmt(r[k])}</span></td>`).join('')}</tr>`).join('');
+    $('rsi_count').textContent=`${sorted.length} rows`;
+    $('rsi_pager').innerHTML=`<button ${this.page<=1?'disabled':''} id="rsi_prev">‹ Prev</button>
+      <span class="mono" style="margin:0 8px">${this.page} / ${total}</span>
+      <button ${this.page>=total?'disabled':''} id="rsi_next">Next ›</button>`;
+    const pv=$('rsi_prev'),nx=$('rsi_next'); if(pv)pv.onclick=()=>{this.page--;this.renderTable();}; if(nx)nx.onclick=()=>{this.page++;this.renderTable();};
+  },
+  renderWeekday(){
+    const card=$('rsi_wdcard'); if(!this.rows.length){ card.style.display='none'; return; } card.style.display='block';
+    $('rsi_wdhead').innerHTML=`<th>Weekday</th><th>Days</th>`+this.KEYS.map(k=>`<th>${this.LABELS[k]}</th>`).join('')+`<th>Short score</th>`;
+    $('rsi_wdbody').innerHTML=DOW.map(d=>{ const s=this.wdstats[d]; const hl=(this.best&&this.best.day===d)?' class="hl"':'';
+      const cells=this.KEYS.map(k=>{ const m=s[k]; if(!m||m.avg==null) return `<td>—</td>`;
+        const title=`${m.avg.toFixed(3)}% avg · ${m.red.toFixed(0)}% red · n=${m.n}`;
+        return `<td title="${title}"><span class="cell mono" style="${heat(m.avg)}">${(m.avg>=0?'+':'')+m.avg.toFixed(2)}%</span></td>`; }).join('');
+      const score=s.score==null?'—':`<span class="mono ${s.score<0?'neg':'pos'}">${(s.score>=0?'+':'')+s.score.toFixed(2)}%</span>`;
+      return `<tr${hl}><td>${d}</td><td class="mono">${s.n}</td>${cells}<td>${score}</td></tr>`; }).join('');
+    const el=$('rsi_best');
+    if(this.best){ el.style.display='block';
+      el.innerHTML=`<b>Best day to short:</b> ${this.best.day} — most red off the open, averaging <span class="mono">${this.best.score.toFixed(2)}%</span> across the 1–15 min windows (n=${this.best.n}). Rows above are highlighted for that day.`; }
+    else el.style.display='none';
+  },
+  downloadExcel(){
+    let h=`<table border="1"><tr><td colspan="10"><b>${this.ticker} — signal days (RSI condition met into the open)</b></td></tr><tr>`;
+    h+=["Date","Day","RSI in","Open $"].concat(Object.values(this.LABELS)).map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    for(const r of this.rows){
+      h+=`<tr><td>${r.date}</td><td>${r.weekday}</td><td>${r.rsi_in==null?'':r.rsi_in.toFixed(1)}</td><td>${r.open_px==null?'':r.open_px.toFixed(2)}</td>`;
+      for(const k of this.KEYS){ const v=r[k]; const bg=v==null?'':(v>=0?'#15803d':'#b91c1c'); const fc=v==null?'#000':'#fff';
+        h+=`<td style="background:${bg};color:${fc}">${v==null?'':v.toFixed(3)}</td>`; }
+      h+='</tr>';
+    }
+    h+='</table><br>';
+    h+=`<table border="1"><tr><td colspan="9"><b>Weekday breakdown — average % move (best day to short: ${this.best?this.best.day:'n/a'})</b></td></tr><tr>`;
+    h+=["Weekday","Days"].concat(Object.values(this.LABELS)).concat(["Short score"]).map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    for(const d of DOW){ const s=this.wdstats[d]; h+=`<tr><td>${d}</td><td>${s.n}</td>`;
+      for(const k of this.KEYS){ const m=s[k]; const v=m?m.avg:null; const bg=v==null?'':(v>=0?'#15803d':'#b91c1c'); const fc=v==null?'#000':'#fff';
+        h+=`<td style="background:${bg};color:${fc}">${v==null?'':v.toFixed(3)}</td>`; }
+      h+=`<td>${s.score==null?'':s.score.toFixed(3)}</td></tr>`; }
+    h+='</table>';
+    exportXls(h, this.ticker+'_rsi_weekday.xls');
+  }
+};
+
+/* =========================================================================
+   PROJECT 3 — BASKET 9:24–9:30 TRIGGER
+   Give a basket + a bps cutoff on the 9:24->9:30 move (up/down). For the chosen
+   session it shows each name's 9:24->9:30 move, flags the ones past the cutoff,
+   and the follow-through off the 9:30 open: +1m (9:31), +2m (9:32), +3m (9:33),
+   +5m (9:35). Same open-forward convention (close of bar 570+(N-1)).
+   The "Imbalance (9:25)" column is wired for later once the source is connected.
+   ========================================================================= */
+const BASKET = {
+  POST3:[1,2,3,5], TRIG:[9,24],
+  rows:[], summary:null, ticker:"", page:1, sortKey:"date", sortDir:-1,
+  KEYS:["move_924_930","ret_1","ret_2","ret_3","ret_5"],
+  COLS:[{k:"date",t:"Date"},{k:"weekday",t:"Day"},{k:"move_924_930",t:"9:24→9:30"},{k:"imb",t:"Imb (9:25)"},
+    {k:"ret_1",t:"+1m"},{k:"ret_2",t:"+2m"},{k:"ret_3",t:"+3m"},{k:"ret_5",t:"+5m"},{k:"open_px",t:"Open $"}],
+  PER_PAGE:20,
+
+  buildRows(days, cutBps, dir){
+    const th=cutBps/100, out=[];
+    for(const date of [...days.keys()].sort().reverse()){
+      const dm=days.get(date);
+      const ri=getBar(dm,this.TRIG), op=getBar(dm,OPEN); if(!ri||!op) continue;
+      const move=pct(ri.c,op.o); if(move==null) continue;
+      const hit = dir==="down"? move<=-th : dir==="up"? move>=th : Math.abs(move)>=th;
+      if(!hit) continue;
+      const openPx=op.o;
+      const row={date, weekday:weekday(date), move_924_930:move, open_px:openPx, imb:null};
+      for(const m of this.POST3){ const tb=getBar(dm,[OPEN[0],OPEN[1]+(m-1)]); row["ret_"+m]=tb?pct(openPx,tb.c):null; }
+      out.push(row);
+    }
+    return out;
+  },
+  summarize(rs){ const o={count:rs.length};
+    for(const c of this.KEYS){ const v=rs.map(r=>r[c]).filter(x=>x!=null);
+      o[c]=v.length?{avg:v.reduce((a,b)=>a+b,0)/v.length, red:100*v.filter(x=>x<0).length/v.length}:{avg:null,red:null}; }
+    return o; },
+
+  async run(){
+    const key=requireKey('bk_error'); if(!key) return;
+    const btn=$('bk_submit'), st=$('bk_status'), er=$('bk_error');
+    btn.disabled=true; $('bk_dl').disabled=true; st.textContent='Fetching intraday history…';
+    try{
+      this.ticker=$('bk_ticker').value.trim().toUpperCase();
+      const cut=parseFloat($('bk_cutoff').value||0), dir=$('bk_direction').value, look=parseInt($('bk_lookback').value||365,10);
+      const to=new Date(), from=new Date(Date.now()-look*864e5), iso=d=>d.toISOString().slice(0,10);
+      const bars=await fetchAggs(this.ticker,1,'minute',iso(from),iso(to),key);
+      this.rows=this.buildRows(groupByDay(bars),cut,dir);
+      this.summary=this.summarize(this.rows); this.page=1; this.sortKey="date"; this.sortDir=-1;
+      this.renderStats(); this.renderTable();
+      $('bk_dl').disabled=this.rows.length===0;
+      st.textContent=`${this.rows.length} day(s) where ${this.ticker} moved ${dir} ≥ ${cut}bps from 9:24–9:30.`;
+      if(this.rows.length){ await this.fetchImbalance(st); }
+    }catch(e){ er.textContent='Error: '+e.message; er.style.display='block'; st.textContent=''; this.rows=[]; this.renderStats(); this.renderTable(); }
+    finally{ btn.disabled=false; }
+  },
+
+  // Pulls 9:25 imbalance from the local server (gh_server.py). If the dashboard was
+  // just double-clicked (no server), this quietly no-ops and the column stays "—".
+  async fetchImbalance(st){
+    try{
+      const dates=this.rows.map(r=>r.date);
+      const resp=await fetch('/api/imbalance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker:this.ticker,dates})});
+      if(!resp.ok) throw 0;
+      const j=await resp.json(); if(!j||!j.ok) throw 0;
+      this.rows.forEach(r=>{ const o=j.data&&j.data[r.date]; if(o&&!o.error) r.imb=o; });
+      this.renderTable();
+      const n=this.rows.filter(r=>r.imb).length;
+      if(st) st.textContent += ` · 9:25 imbalance filled for ${n}/${this.rows.length}.`;
+    }catch(e){ /* no server / no data — price side still fully works */ }
+  },
+  fmtSh(n){ if(n==null)return''; const a=Math.abs(n); if(a>=1e6)return (n/1e6).toFixed(2)+'M'; if(a>=1e3)return (n/1e3).toFixed(0)+'K'; return ''+n; },
+  fmtNot(n){ if(n==null)return''; const a=Math.abs(n); if(a>=1e9)return '$'+(n/1e9).toFixed(2)+'B'; if(a>=1e6)return '$'+(n/1e6).toFixed(1)+'M'; if(a>=1e3)return '$'+(n/1e3).toFixed(0)+'K'; return '$'+Math.round(n); },
+  imbCell(o){ if(!o) return '<span class="mono" style="color:var(--muted)">—</span>';
+    const col=o.side==='Sell'?'var(--red)':o.side==='Buy'?'var(--green)':'var(--muted)';
+    return `<span style="color:${col};font-weight:700">${o.side||'—'}</span> <span class="mono" style="color:var(--muted)">${this.fmtSh(o.shares)} · ${this.fmtNot(o.notional)}</span>`; },
+
+  statCell(m){ if(!m||m.avg==null)return{v:"—",sub:"",cls:""};
+    return {v:(m.avg>=0?"+":"")+m.avg.toFixed(2)+"%",sub:m.red.toFixed(0)+"% red",cls:m.avg>=0?"pos":"neg"}; },
+  renderStats(){
+    const el=$('bk_stats'); if(!this.rows.length){ el.style.display='none'; return; }
+    const s=this.summary;
+    const it=[{k:"Signal days",v:s.count,sub:"met cutoff",cls:""},{k:"9:24-9:30",...this.statCell(s.move_924_930)},
+      {k:"+1m",...this.statCell(s.ret_1)},{k:"+2m",...this.statCell(s.ret_2)},{k:"+3m",...this.statCell(s.ret_3)},{k:"+5m",...this.statCell(s.ret_5)}];
+    el.innerHTML=it.map(i=>`<div class="stat"><div class="k">${i.k}</div><div class="v mono ${i.cls||''}">${i.v}</div><div class="sub">${i.sub||''}</div></div>`).join('');
+    el.style.display='grid';
+  },
+  renderTable(){
+    $('bk_tablecard').style.display=this.rows.length?'block':'none'; if(!this.rows.length) return;
+    $('bk_head').innerHTML=this.COLS.map(c=>{ const a=c.k===this.sortKey?`<span class="arrow">${this.sortDir>0?'▲':'▼'}</span>`:''; return `<th data-k="${c.k}">${c.t} ${a}</th>`; }).join('');
+    $('bk_head').querySelectorAll('th').forEach(th=>th.onclick=()=>{ if(this.sortKey===th.dataset.k)this.sortDir*=-1; else{this.sortKey=th.dataset.k;this.sortDir=-1;} this.renderTable(); });
+    const sorted=[...this.rows].sort((a,b)=>{ let x=a[this.sortKey],y=b[this.sortKey];
+      if(this.sortKey==='date'||this.sortKey==='weekday'||this.sortKey==='imb'){x=x==null?'':x;y=y==null?'':y;return x<y?-this.sortDir:x>y?this.sortDir:0;}
+      x=(x==null?-1e9:x);y=(y==null?-1e9:y);return (x-y)*this.sortDir;});
+    const total=Math.ceil(sorted.length/this.PER_PAGE)||1; this.page=Math.min(this.page,total)||1;
+    const slice=sorted.slice((this.page-1)*this.PER_PAGE,this.page*this.PER_PAGE);
+    $('bk_body').innerHTML=slice.map(r=>`<tr><td class="mono">${r.date}</td><td>${r.weekday}</td>
+      <td><span class="cell mono" style="${heat(r.move_924_930)}">${fmt(r.move_924_930)}</span></td>
+      <td>${this.imbCell(r.imb)}</td>
+      ${["ret_1","ret_2","ret_3","ret_5"].map(k=>`<td><span class="cell mono" style="${heat(r[k])}">${fmt(r[k])}</span></td>`).join('')}
+      <td class="mono">${r.open_px==null?'':'$'+r.open_px.toFixed(2)}</td></tr>`).join('');
+    $('bk_count').textContent=`${sorted.length} rows`;
+    $('bk_pager').innerHTML=`<button ${this.page<=1?'disabled':''} id="bk_prev">‹ Prev</button>
+      <span class="mono" style="margin:0 8px">${this.page} / ${total}</span>
+      <button ${this.page>=total?'disabled':''} id="bk_next">Next ›</button>`;
+    const pv=$('bk_prev'),nx=$('bk_next'); if(pv)pv.onclick=()=>{this.page--;this.renderTable();}; if(nx)nx.onclick=()=>{this.page++;this.renderTable();};
+  },
+  downloadExcel(){
+    const labels=["Date","Day","9:24-9:30","Imb side","Imb shares","Imb notional $","+1m","+2m","+3m","+5m","Open $"];
+    let h=`<table border="1"><tr><td colspan="11"><b>${this.ticker} — 9:24-9:30 move signal days, follow-through & 9:25 imbalance</b></td></tr><tr>`;
+    h+=labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    for(const r of this.rows){
+      h+=`<tr><td>${r.date}</td><td>${r.weekday}</td>`;
+      const mv=r.move_924_930; h+=`<td style="background:${mv==null?'':(mv>=0?'#15803d':'#b91c1c')};color:${mv==null?'#000':'#fff'}">${mv==null?'':mv.toFixed(3)}</td>`;
+      const o=r.imb; h+=`<td>${o&&o.side?o.side:''}</td><td>${o&&o.shares!=null?o.shares:''}</td><td>${o&&o.notional!=null?Math.round(o.notional):''}</td>`;
+      for(const k of ["ret_1","ret_2","ret_3","ret_5"]){ const v=r[k]; h+=`<td style="background:${v==null?'':(v>=0?'#15803d':'#b91c1c')};color:${v==null?'#000':'#fff'}">${v==null?'':v.toFixed(3)}</td>`; }
+      h+=`<td>${r.open_px==null?'':r.open_px.toFixed(2)}</td></tr>`;
+    }
+    h+='</table>';
+    exportXls(h, this.ticker+'_924_930_move.xls');
+  }
+};
+
+/* ---------------- wire everything up ---------------- */
+buildTabs(); showTool(TOOLS[0].id);
+$('pm_submit').onclick=()=>PM.run();
+$('pm_dl').onclick=()=>PM.downloadExcel();
+$('pm_ticker').addEventListener('keydown',e=>{if(e.key==='Enter')PM.run();});
+$('rsi_submit').onclick=()=>RSI.run();
+$('rsi_dl').onclick=()=>RSI.downloadExcel();
+$('rsi_ticker').addEventListener('keydown',e=>{if(e.key==='Enter')RSI.run();});
+$('bk_submit').onclick=()=>BASKET.run();
+$('bk_dl').onclick=()=>BASKET.downloadExcel();
+$('bk_ticker').addEventListener('keydown',e=>{if(e.key==='Enter')BASKET.run();});
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: gh-trading-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn gh_app:app --workers 3 --timeout 180 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: MASSIVE_API_KEY
+        sync: false          # you enter this in the Render dashboard (kept secret)
+      - key: DATABENTO_API_KEY
+        sync: false          # enter in dashboard; enables the imbalance column
+      - key: DASH_USER
+        sync: false          # the login username you want
+      - key: DASH_PASS
+        sync: false          # the login password you want
+      - key: DATABENTO_DATASET
+        value: XNAS.ITCH      # Nasdaq NOII (correct for NVDA)
