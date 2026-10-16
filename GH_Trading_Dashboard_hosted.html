@@ -68,7 +68,7 @@
 <body>
   <header>
     <h1>GH Trading Dashboard</h1>
-    <span class="brand">Massive market data · everything in one place</span>
+    <span class="brand">Massive market data · everything in one place · <b style="color:#7fd1ff">build gap-v5</b></span>
     <div class="keywrap">
       <label>Hosted edition</label>
       <div style="font-size:12px;color:#9fb3d1;padding-top:6px">Keys live on the GH server — nothing to enter here.</div>
@@ -508,7 +508,7 @@ const BASKET = {
   POST3:[1,2,3,5], TRIG:[9,24],
   rows:[], summary:null, ticker:"", page:1, sortKey:"date", sortDir:-1,
   KEYS:["move_924_930","ret_1","ret_2","ret_3","ret_5"],
-  COLS:[{k:"date",t:"Date"},{k:"weekday",t:"Day"},{k:"move_924_930",t:"9:24→9:30"},{k:"imb",t:"Imb (9:25)"},
+  COLS:[{k:"date",t:"Date"},{k:"weekday",t:"Day"},{k:"gap_prev",t:"Prev Gap"},{k:"move_924_930",t:"9:24→9:30"},{k:"imb",t:"Imb (9:25)"},
     {k:"ret_1",t:"+1m"},{k:"ret_2",t:"+2m"},{k:"ret_3",t:"+3m"},{k:"ret_5",t:"+5m"},{k:"open_px",t:"Open $"}],
   PER_PAGE:20,
 
@@ -542,6 +542,14 @@ const BASKET = {
       const to=new Date(), from=new Date(Date.now()-look*864e5), iso=d=>d.toISOString().slice(0,10);
       const bars=await fetchAggs(this.ticker,1,'minute',iso(from),iso(to),key);
       this.rows=this.buildRows(groupByDay(bars),cut,dir);
+      // Previous-close gap: (that day's open - prior trading day's close) / prior close.
+      try{
+        const daily=await fetchAggs(this.ticker,1,'day',iso(from),iso(to),key);
+        const dd=daily.map(b=>({d:new Date(b.t).toISOString().slice(0,10), c:b.c})).sort((a,b)=>a.d<b.d?-1:1);
+        const idx={}; dd.forEach((x,i)=>idx[x.d]=i);
+        this.rows.forEach(r=>{ const i=idx[r.date]; const pc=(i!=null&&i>0)?dd[i-1].c:null;
+          r.gap_prev=(pc!=null&&r.open_px!=null)?pct(pc,r.open_px):null; });
+      }catch(e){ this.rows.forEach(r=>r.gap_prev=r.gap_prev??null); }
       this.summary=this.summarize(this.rows); this.page=1; this.sortKey="date"; this.sortDir=-1;
       this.renderStats(); this.renderTable();
       $('bk_dl').disabled=this.rows.length===0;
@@ -591,6 +599,7 @@ const BASKET = {
     const total=Math.ceil(sorted.length/this.PER_PAGE)||1; this.page=Math.min(this.page,total)||1;
     const slice=sorted.slice((this.page-1)*this.PER_PAGE,this.page*this.PER_PAGE);
     $('bk_body').innerHTML=slice.map(r=>`<tr><td class="mono">${r.date}</td><td>${r.weekday}</td>
+      <td><span class="cell mono" style="${heat(r.gap_prev)}">${fmt(r.gap_prev)}</span></td>
       <td><span class="cell mono" style="${heat(r.move_924_930)}">${fmt(r.move_924_930)}</span></td>
       <td>${this.imbCell(r.imb)}</td>
       ${["ret_1","ret_2","ret_3","ret_5"].map(k=>`<td><span class="cell mono" style="${heat(r[k])}">${fmt(r[k])}</span></td>`).join('')}
@@ -602,11 +611,12 @@ const BASKET = {
     const pv=$('bk_prev'),nx=$('bk_next'); if(pv)pv.onclick=()=>{this.page--;this.renderTable();}; if(nx)nx.onclick=()=>{this.page++;this.renderTable();};
   },
   downloadExcel(){
-    const labels=["Date","Day","9:24-9:30","Imb side","Imb notional $","Imb shares","+1m","+2m","+3m","+5m","Open $"];
-    let h=`<table border="1"><tr><td colspan="11"><b>${this.ticker} — 9:24-9:30 move signal days, follow-through & 9:25 imbalance</b></td></tr><tr>`;
+    const labels=["Date","Day","Prev Gap","9:24-9:30","Imb side","Imb notional $","Imb shares","+1m","+2m","+3m","+5m","Open $"];
+    let h=`<table border="1"><tr><td colspan="12"><b>${this.ticker} — 9:24-9:30 move signal days, follow-through & 9:25 imbalance</b></td></tr><tr>`;
     h+=labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';
     for(const r of this.rows){
       h+=`<tr><td>${r.date}</td><td>${r.weekday}</td>`;
+      const gp=r.gap_prev; h+=`<td style="background:${gp==null?'':(gp>=0?'#15803d':'#b91c1c')};color:${gp==null?'#000':'#fff'}">${gp==null?'':gp.toFixed(3)}</td>`;
       const mv=r.move_924_930; h+=`<td style="background:${mv==null?'':(mv>=0?'#15803d':'#b91c1c')};color:${mv==null?'#000':'#fff'}">${mv==null?'':mv.toFixed(3)}</td>`;
       const o=r.imb; h+=`<td>${o&&o.side?o.side:''}</td><td>${o&&o.notional!=null?Math.round(o.notional):''}</td><td>${o&&o.shares!=null?o.shares:''}</td>`;
       for(const k of ["ret_1","ret_2","ret_3","ret_5"]){ const v=r[k]; h+=`<td style="background:${v==null?'':(v>=0?'#15803d':'#b91c1c')};color:${v==null?'#000':'#fff'}">${v==null?'':v.toFixed(3)}</td>`; }

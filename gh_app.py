@@ -55,6 +55,15 @@ def norm_side(v):
     return "None"
 
 app = Flask(__name__)
+
+
+@app.after_request
+def _no_cache(resp):
+    # Never let the browser or any edge cache the dashboard HTML — always serve fresh.
+    if resp.mimetype == "text/html":
+        resp.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+    return resp
 _dbn_client = None
 
 
